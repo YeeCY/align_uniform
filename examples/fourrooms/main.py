@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 
 import plotly.graph_objects as go
+import pickle as pkl
 
 from examples.stl10.util import AverageMeter, TwoAugUnsupervisedDataset
 from encoder import FeedForwardNet
@@ -57,22 +58,47 @@ def parse_option():
     return opt
 
 
-def get_data_loader(opt):
-    transform = torchvision.transforms.Compose([
-        torchvision.transforms.RandomResizedCrop(64, scale=(0.08, 1)),
-        torchvision.transforms.RandomHorizontalFlip(),
-        torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
-        torchvision.transforms.RandomGrayscale(p=0.2),
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(
-            (0.44087801806139126, 0.42790631331699347, 0.3867879370752931),
-            (0.26826768628079806, 0.2610450402318512, 0.26866836876860795),
-        ),
-    ])
+def get_data_loader(opt, gamma=0.9):
+    # transform = torchvision.transforms.Compose([
+    #     torchvision.transforms.RandomResizedCrop(64, scale=(0.08, 1)),
+    #     torchvision.transforms.RandomHorizontalFlip(),
+    #     torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
+    #     torchvision.transforms.RandomGrayscale(p=0.2),
+    #     torchvision.transforms.ToTensor(),
+    #     torchvision.transforms.Normalize(
+    #         (0.44087801806139126, 0.42790631331699347, 0.3867879370752931),
+    #         (0.26826768628079806, 0.2610450402318512, 0.26866836876860795),
+    #     ),
+    # ])
     # dataset = TwoAugUnsupervisedDataset(
     #     torchvision.datasets.STL10(opt.data_folder, 'train+unlabeled', download=True), transform=transform)
-    dataset = TwoAugUnsupervisedDataset(
-        torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
+    # dataset = TwoAugUnsupervisedDataset(
+    #     torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
+    dataset_path = os.path.abspath("data/continuous_point_env_fourrooms_dataset.pkl")  # 17871 transitions in total
+    with open(dataset_path, "rb") as f:
+        dataset = pkl.load(f)
+    print("Load dataset from: {}".format(dataset_path))
+    print("Number of transitions in the dataset: {}".format(sum([len(traj) for traj in dataset])))
+
+    relabeled_dataset = []
+    for traj in dataset:
+        for t in range(len(traj) - 1):
+            s, a = traj[t]
+            next_s, next_a = traj[t + 1]
+
+            w_sum = (1 - gamma ** (len(traj) - t - 1)) / (1 - gamma)
+            w = gamma ** (np.arange(t + 1, len(traj)) - t - 1) / w_sum
+
+            future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
+            future_idx = np.random.choice(future_idxs, p=w)
+            g, _ = traj[t + future_idx]
+
+            relabeled_dataset.append((s, a, g, next_s, next_a))
+    relabeled_dataset = torch.Tensor(relabeled_dataset)
+    print("Number of transitions in the relabeled dataset: {}".format(len(relabeled_dataset)))
+
+    dataset = torch.utils.data.TensorDataset(relabeled_dataset)
+
     return torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, num_workers=opt.num_workers,
                                        shuffle=True, pin_memory=True)
 
@@ -92,8 +118,10 @@ def visualize(opt, encoder, dataloader):
     # s_repr = phi.apply(phi_params, s)
     # dataloader.
     reprs = []
-    for im_x, _ in dataloader:
-        repr = encoder(im_x.to(opt.gpus[0]))
+    for transition in dataloader:
+        s = transition[0][:, 0]
+
+        repr = encoder(s.to(opt.gpus[0]))
 
         reprs.append(repr.cpu().detach().numpy())
     reprs = np.concatenate(reprs)[:15000]
@@ -136,9 +164,10 @@ def main():
 
     # DEBUG
     # fig = visualize(opt, encoder, loader)
-    # fig_path = "figures/3d_repr_vis.html"
+    # fig_path = "figures/fourrooms_3d_repr_vis.html"
     # fig.write_html(fig_path, include_mathjax='cdn')
     # print("Figure save to: {}".format(fig_path))
+    # exit()
 
     align_meter = AverageMeter('align_loss')
     unif_meter = AverageMeter('uniform_loss')
@@ -150,20 +179,23 @@ def main():
         loss_meter.reset()
         it_time_meter.reset()
         t0 = time.time()
-        for ii, (im_x, im_y) in enumerate(loader):
+        for ii, transition in enumerate(loader):
+            s = transition[0][:, 0]
+            g = transition[0][:, 2]
+
             optim.zero_grad()
-            x, y = encoder(torch.cat([im_x.to(opt.gpus[0]), im_y.to(opt.gpus[0])])).chunk(2)
+            s_repr, g_repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])])).chunk(2)
             # align_loss_val = align_loss(x, y, alpha=opt.align_alpha)
             # unif_loss_val = (uniform_loss(x, t=opt.unif_t) + uniform_loss(y, t=opt.unif_t)) / 2
             # loss = align_loss_val * opt.align_w + unif_loss_val * opt.unif_w
             # align_meter.update(align_loss_val, x.shape[0])
             # unif_meter.update(unif_loss_val)
 
-            logits = x @ y.T
+            logits = s_repr @ g_repr.T
             labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
             loss = torch.mean(cpc_loss(logits, labels))
 
-            loss_meter.update(loss, x.shape[0])
+            loss_meter.update(loss, s_repr.shape[0])
             loss.backward()
             optim.step()
             it_time_meter.update(time.time() - t0)
@@ -173,13 +205,13 @@ def main():
                 print(f"Epoch {epoch}/{opt.epochs}\tIt {ii}/{len(loader)}\t" +
                       f"\t{loss_meter}\t{it_time_meter}")
             t0 = time.time()
-        scheduler.step()
+        # scheduler.step()
     ckpt_file = os.path.join(opt.save_folder, 'encoder.pth')
     torch.save(encoder.module.state_dict(), ckpt_file)
     print(f'Saved to {ckpt_file}')
 
     fig = visualize(opt, encoder, loader)
-    fig_path = "figures/3d_repr_vis.html"
+    fig_path = "figures/fourrooms_3d_repr_vis.html"
     fig.write_html(fig_path, include_mathjax='cdn')
     print("Figure save to: {}".format(fig_path))
 

@@ -173,7 +173,7 @@ def main():
                 print(f"Epoch {epoch}/{opt.epochs}\tIt {ii}/{len(loader)}\t" +
                       f"\t{loss_meter}\t{it_time_meter}")
             t0 = time.time()
-        scheduler.step()
+        # scheduler.step()
     ckpt_file = os.path.join(opt.save_folder, 'encoder.pth')
     torch.save(encoder.module.state_dict(), ckpt_file)
     print(f'Saved to {ckpt_file}')
