@@ -2,9 +2,12 @@ import os
 import time
 import argparse
 
+import numpy as np
 import torchvision
 import torch
 import torch.nn as nn
+
+import plotly.graph_objects as go
 
 from util import AverageMeter, TwoAugUnsupervisedDataset
 from encoder import SmallAlexNet
@@ -66,10 +69,49 @@ def get_data_loader(opt):
             (0.26826768628079806, 0.2610450402318512, 0.26866836876860795),
         ),
     ])
+    # dataset = TwoAugUnsupervisedDataset(
+    #     torchvision.datasets.STL10(opt.data_folder, 'train+unlabeled', download=True), transform=transform)
     dataset = TwoAugUnsupervisedDataset(
-        torchvision.datasets.STL10(opt.data_folder, 'train+unlabeled', download=True), transform=transform)
+        torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
     return torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, num_workers=opt.num_workers,
                                        shuffle=True, pin_memory=True)
+
+
+def visualize(opt, encoder, dataloader):
+    # data for sphere
+    r = 1
+    u = np.linspace(0, 2 * np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
+    x = r * np.outer(np.cos(u), np.sin(v))
+    y = r * np.outer(np.sin(u), np.sin(v))
+    z = r * np.outer(np.ones(np.size(u)), np.cos(v))
+
+    # Plot the surface
+    # phi = phi.reshape([-1, repr_dim])
+    # sa_repr = phi.apply(phi_params, s, a)
+    # s_repr = phi.apply(phi_params, s)
+    # dataloader.
+    reprs = []
+    for im_x, _ in dataloader:
+        repr = encoder(im_x.to(opt.gpus[0]))
+
+        reprs.append(repr.cpu().detach().numpy())
+    reprs = np.concatenate(reprs)[:15000]
+
+    fig = go.Figure(data=[
+        go.Surface(x=x, y=y, z=z,
+                   colorscale=[[0, 'cornflowerblue'], [1, 'cornflowerblue']],
+                   opacity=0.1,
+                   showscale=False),
+        go.Scatter3d(x=reprs[:, 0], y=reprs[:, 1], z=reprs[:, 2],
+                     name=r'$repr$',
+                     mode='markers',
+                     marker={'size': 8,
+                             'color': 'limegreen'},
+                     showlegend=True),
+    ])
+
+    return fig
 
 
 def main():
@@ -83,12 +125,20 @@ def main():
 
     encoder = nn.DataParallel(SmallAlexNet(feat_dim=opt.feat_dim).to(opt.gpus[0]), opt.gpus)
 
-    optim = torch.optim.SGD(encoder.parameters(), lr=opt.lr,
-                            momentum=opt.momentum, weight_decay=opt.weight_decay)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, gamma=opt.lr_decay_rate,
-                                                     milestones=opt.lr_decay_epochs)
+    # optim = torch.optim.SGD(encoder.parameters(), lr=opt.lr,
+    #                         momentum=opt.momentum, weight_decay=opt.weight_decay)
+    # scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, gamma=opt.lr_decay_rate,
+    #                                                  milestones=opt.lr_decay_epochs)
+    optim = torch.optim.Adam(encoder.parameters(), lr=opt.lr, weight_decay=opt.weight_decay)
 
     loader = get_data_loader(opt)
+    cpc_loss = nn.CrossEntropyLoss(reduction='none')
+
+    # DEBUG
+    # fig = visualize(opt, encoder, loader)
+    # fig_path = "figures/3d_repr_vis.html"
+    # fig.write_html(fig_path, include_mathjax='cdn')
+    # print("Figure save to: {}".format(fig_path))
 
     align_meter = AverageMeter('align_loss')
     unif_meter = AverageMeter('uniform_loss')
@@ -103,23 +153,35 @@ def main():
         for ii, (im_x, im_y) in enumerate(loader):
             optim.zero_grad()
             x, y = encoder(torch.cat([im_x.to(opt.gpus[0]), im_y.to(opt.gpus[0])])).chunk(2)
-            align_loss_val = align_loss(x, y, alpha=opt.align_alpha)
-            unif_loss_val = (uniform_loss(x, t=opt.unif_t) + uniform_loss(y, t=opt.unif_t)) / 2
-            loss = align_loss_val * opt.align_w + unif_loss_val * opt.unif_w
-            align_meter.update(align_loss_val, x.shape[0])
-            unif_meter.update(unif_loss_val)
+            # align_loss_val = align_loss(x, y, alpha=opt.align_alpha)
+            # unif_loss_val = (uniform_loss(x, t=opt.unif_t) + uniform_loss(y, t=opt.unif_t)) / 2
+            # loss = align_loss_val * opt.align_w + unif_loss_val * opt.unif_w
+            # align_meter.update(align_loss_val, x.shape[0])
+            # unif_meter.update(unif_loss_val)
+
+            logits = x @ y.T
+            labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
+            loss = torch.mean(cpc_loss(logits, labels))
+
             loss_meter.update(loss, x.shape[0])
             loss.backward()
             optim.step()
             it_time_meter.update(time.time() - t0)
             if ii % opt.log_interval == 0:
+                # print(f"Epoch {epoch}/{opt.epochs}\tIt {ii}/{len(loader)}\t" +
+                #       f"{align_meter}\t{unif_meter}\t{loss_meter}\t{it_time_meter}")
                 print(f"Epoch {epoch}/{opt.epochs}\tIt {ii}/{len(loader)}\t" +
-                      f"{align_meter}\t{unif_meter}\t{loss_meter}\t{it_time_meter}")
+                      f"\t{loss_meter}\t{it_time_meter}")
             t0 = time.time()
         scheduler.step()
     ckpt_file = os.path.join(opt.save_folder, 'encoder.pth')
     torch.save(encoder.module.state_dict(), ckpt_file)
     print(f'Saved to {ckpt_file}')
+
+    fig = visualize(opt, encoder, loader)
+    fig_path = "figures/3d_repr_vis.html"
+    fig.write_html(fig_path, include_mathjax='cdn')
+    print("Figure save to: {}".format(fig_path))
 
 
 if __name__ == '__main__':
