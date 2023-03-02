@@ -12,7 +12,7 @@ import pickle as pkl
 
 from examples.stl10.util import AverageMeter, TwoAugUnsupervisedDataset
 from encoder import FeedForwardNet
-# from align_uniform import align_loss, uniform_loss
+from align_uniform import align_loss, uniform_loss
 
 
 def parse_option():
@@ -91,9 +91,16 @@ def get_data_loader(opt, gamma=0.9):
 
             future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
             future_idx = np.random.choice(future_idxs, p=w)
+            # future_idx = np.random.choice(future_idxs)
             g, _ = traj[t + future_idx]
 
-            relabeled_dataset.append((s, a, g, next_s, next_a))
+            # s = np.random.normal(loc=s, scale=0.2)
+            # g = np.random.normal(loc=s, scale=0.2)
+            # s = np.concatenate([s, np.random.normal(size=(126, ))])
+            # g = np.concatenate([g, np.random.normal(size=(126, ))])
+
+            # relabeled_dataset.append((s, a, g, next_s, next_a))
+            relabeled_dataset.append((s, g))
     relabeled_dataset = torch.Tensor(relabeled_dataset)
     print("Number of transitions in the relabeled dataset: {}".format(len(relabeled_dataset)))
 
@@ -124,7 +131,7 @@ def visualize(opt, encoder, dataloader):
         repr = encoder(s.to(opt.gpus[0]))
 
         reprs.append(repr.cpu().detach().numpy())
-    reprs = np.concatenate(reprs)[:15000]
+    reprs = np.concatenate(reprs)
 
     fig = go.Figure(data=[
         go.Surface(x=x, y=y, z=z,
@@ -153,11 +160,11 @@ def main():
 
     encoder = nn.DataParallel(FeedForwardNet(in_dim=2, feat_dim=opt.feat_dim).to(opt.gpus[0]), opt.gpus)
 
-    # optim = torch.optim.SGD(encoder.parameters(), lr=opt.lr,
-    #                         momentum=opt.momentum, weight_decay=opt.weight_decay)
+    optim = torch.optim.SGD(encoder.parameters(), lr=opt.lr,
+                            momentum=opt.momentum, weight_decay=opt.weight_decay)
     # scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, gamma=opt.lr_decay_rate,
     #                                                  milestones=opt.lr_decay_epochs)
-    optim = torch.optim.Adam(encoder.parameters(), lr=opt.lr, weight_decay=opt.weight_decay)
+    # optim = torch.optim.Adam(encoder.parameters(), lr=opt.lr, weight_decay=opt.weight_decay)
 
     loader = get_data_loader(opt)
     cpc_loss = nn.CrossEntropyLoss(reduction='none')
@@ -181,19 +188,19 @@ def main():
         t0 = time.time()
         for ii, transition in enumerate(loader):
             s = transition[0][:, 0]
-            g = transition[0][:, 2]
+            g = transition[0][:, 1]
 
             optim.zero_grad()
             s_repr, g_repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])])).chunk(2)
-            # align_loss_val = align_loss(x, y, alpha=opt.align_alpha)
-            # unif_loss_val = (uniform_loss(x, t=opt.unif_t) + uniform_loss(y, t=opt.unif_t)) / 2
-            # loss = align_loss_val * opt.align_w + unif_loss_val * opt.unif_w
+            align_loss_val = align_loss(s_repr, g_repr, alpha=opt.align_alpha)
+            unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
+            loss = align_loss_val * opt.align_w + unif_loss_val * opt.unif_w
             # align_meter.update(align_loss_val, x.shape[0])
             # unif_meter.update(unif_loss_val)
 
-            logits = s_repr @ g_repr.T
-            labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
-            loss = torch.mean(cpc_loss(logits, labels))
+            # logits = s_repr @ g_repr.T
+            # labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
+            # loss = torch.mean(cpc_loss(logits, labels))
 
             loss_meter.update(loss, s_repr.shape[0])
             loss.backward()
