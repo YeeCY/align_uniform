@@ -11,9 +11,9 @@ import plotly.graph_objects as go
 import pickle as pkl
 
 import gym
-import d4rl  # Import required to register environments, you may need to also import the submodule
+# import d4rl  # Import required to register environments, you may need to also import the submodule
 
-from util import AverageMeter, TwoAugUnsupervisedDataset
+from util import AverageMeter, AugDataset
 from encoder import SmallAlexNet
 from align_uniform import align_loss, uniform_loss
 
@@ -62,17 +62,17 @@ def parse_option():
 
 
 def get_data_loader(opt, gamma=0.9):
-    # transform = torchvision.transforms.Compose([
-    #     torchvision.transforms.RandomResizedCrop(64, scale=(0.08, 1)),
-    #     torchvision.transforms.RandomHorizontalFlip(),
-    #     torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
-    #     torchvision.transforms.RandomGrayscale(p=0.2),
-    #     torchvision.transforms.ToTensor(),
-    #     torchvision.transforms.Normalize(
-    #         (0.44087801806139126, 0.42790631331699347, 0.3867879370752931),
-    #         (0.26826768628079806, 0.2610450402318512, 0.26866836876860795),
-    #     ),
-    # ])
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.RandomResizedCrop(48, scale=(0.8, 1)),
+        torchvision.transforms.RandomHorizontalFlip(),
+        torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
+        torchvision.transforms.RandomGrayscale(p=0.2),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(
+            (0.44087801806139126, 0.42790631331699347, 0.3867879370752931),
+            (0.26826768628079806, 0.2610450402318512, 0.26866836876860795),
+        ),
+    ])
     # dataset = TwoAugUnsupervisedDataset(
     #     torchvision.datasets.STL10(opt.data_folder, 'train+unlabeled', download=True), transform=transform)
     # dataset = TwoAugUnsupervisedDataset(
@@ -83,31 +83,48 @@ def get_data_loader(opt, gamma=0.9):
     print("Load dataset from: {}".format(dataset_path))
     print("Number of transitions in the dataset: {}".format(sum([len(traj) for traj in dataset])))
 
-    relabeled_dataset = []
-    for traj in dataset:
-        for t in range(len(traj) - 1):
-            obs, a = traj[t]
-            next_s, next_a = traj[t + 1]
+    # relabeled_dataset = []
+    # for traj in dataset:
+    #     for t in range(len(traj) - 1):
+    #         obs, a = traj[t]
+    #         next_s, next_a = traj[t + 1]
+    #
+    #         w_sum = (1 - gamma ** (len(traj) - t - 1)) / (1 - gamma)
+    #         w = gamma ** (np.arange(t + 1, len(traj)) - t - 1) / w_sum
+    #
+    #         future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
+    #         future_idx = np.random.choice(future_idxs, p=w)
+    #         g, _ = traj[t + future_idx]
+    #
+    #         # s = np.random.normal(loc=s, scale=0.2)
+    #         # g = np.random.normal(loc=s, scale=0.2)
+    #         # (B, C, H, W)
+    #         # obs = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
+    #         # g = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
+    #         # obs = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
+    #         # g = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
+    #
+    #         obs = obs.reshape([48, 48, 3])
+    #         g = obs.reshape([48, 48, 3])
+    #
+    #         # relabeled_dataset.append((obs, a, g, next_s, next_a))
+    #         relabeled_dataset.append((obs, g))
+    # relabeled_dataset = np.array(relabeled_dataset)
+    # dataset_dir = os.path.abspath("./data")
+    # dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_mixed_img_relabeled.pkl")
+    # os.makedirs(dataset_dir, exist_ok=True)
+    # with open(dataset_path, "wb+") as f:
+    #     pkl.dump(relabeled_dataset, f)
+    # print("Dataset saved to: {}".format(dataset_path))
+    # exit()
 
-            w_sum = (1 - gamma ** (len(traj) - t - 1)) / (1 - gamma)
-            w = gamma ** (np.arange(t + 1, len(traj)) - t - 1) / w_sum
-
-            future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
-            future_idx = np.random.choice(future_idxs, p=w)
-            g, _ = traj[t + future_idx]
-
-            # s = np.random.normal(loc=s, scale=0.2)
-            # g = np.random.normal(loc=s, scale=0.2)
-            # (B, C, H, W)
-            obs = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
-            g = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
-
-            # relabeled_dataset.append((obs, a, g, next_s, next_a))
-            relabeled_dataset.append((obs, g))
-    relabeled_dataset = torch.Tensor(relabeled_dataset)
+    dataset_path = os.path.abspath("data/metaworld_door_open_v2_mixed_img_relabeled.pkl")
+    with open(dataset_path, "rb") as f:
+        relabeled_dataset = pkl.load(f)
+    # relabeled_dataset = torch.Tensor(relabeled_dataset)
     print("Number of transitions in the relabeled dataset: {}".format(len(relabeled_dataset)))
 
-    dataset = torch.utils.data.TensorDataset(relabeled_dataset)
+    dataset = AugDataset(relabeled_dataset, transform)
 
     # env = gym.make('kitchen-complete-v0')
     # dataset = env.get_dataset()
@@ -159,8 +176,8 @@ def visualize(opt, encoder, dataloader):
     # dataloader.
     reprs = []
     for transition in dataloader:
-        s = transition[0][:, 0]
-        g = transition[0][:, 1]
+        s = transition[:, 0]
+        g = transition[:, 1]
 
         repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])]))
 
@@ -222,8 +239,8 @@ def main():
         it_time_meter.reset()
         t0 = time.time()
         for ii, transition in enumerate(loader):
-            s = transition[0][:, 0]
-            g = transition[0][:, 1]
+            s = transition[:, 0]
+            g = transition[:, 1]
 
             optim.zero_grad()
             s_repr, g_repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])])).chunk(2)

@@ -1,4 +1,5 @@
 import torch
+from PIL import Image
 
 
 class AverageMeter(object):
@@ -47,6 +48,23 @@ class TwoAugUnsupervisedDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         image, _ = self.dataset[index]
         return self.transform(image), self.transform(image)
+
+    def __len__(self):
+        return len(self.dataset)
+
+
+class AugDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset, transform):
+        self.dataset = dataset
+        self.transform = transform
+
+    def __getitem__(self, index):
+        images1, images2 = self.dataset[index]
+        images1 = Image.fromarray(images1)
+        images2 = Image.fromarray(images2)
+
+        images = torch.stack([self.transform(images1), self.transform(images1)])
+        return images
 
     def __len__(self):
         return len(self.dataset)

@@ -48,7 +48,7 @@ def main():
             # action = np.random.randint(low=0, high=5)
             # traj.append((obs, action))
             # imgs.append(img)
-            traj.append(((img / 255.0).reshape(-1), action))
+            traj.append((img.reshape(-1), action))
 
             obs, reward, done, info = env.step(action)
 
