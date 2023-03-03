@@ -57,7 +57,7 @@ class SmallAlexNet(nn.Module):
         # fc6
         blocks.append(nn.Sequential(
             nn.Flatten(),
-            nn.Linear(192 * 7 * 7, 4096, bias=False),  # 256 * 6 * 6 if 224 * 224
+            nn.Linear(192 * 5 * 5, 4096, bias=False),
             nn.BatchNorm1d(4096),
             nn.ReLU(inplace=True),
         ))

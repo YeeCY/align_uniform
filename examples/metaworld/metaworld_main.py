@@ -77,63 +77,67 @@ def get_data_loader(opt, gamma=0.9):
     #     torchvision.datasets.STL10(opt.data_folder, 'train+unlabeled', download=True), transform=transform)
     # dataset = TwoAugUnsupervisedDataset(
     #     torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
-    # dataset_path = os.path.abspath("data/continuous_point_env_d4rl_dataset.pkl")  # 17871 transitions in total
-    # with open(dataset_path, "rb") as f:
-    #     dataset = pkl.load(f)
-    # print("Load dataset from: {}".format(dataset_path))
-    # print("Number of transitions in the dataset: {}".format(sum([len(traj) for traj in dataset])))
+    dataset_path = os.path.abspath("data/metaworld_door_open_v2_mixed_img.pkl")
+    with open(dataset_path, "rb") as f:
+        dataset = pkl.load(f)
+    print("Load dataset from: {}".format(dataset_path))
+    print("Number of transitions in the dataset: {}".format(sum([len(traj) for traj in dataset])))
 
-    # relabeled_dataset = []
-    # for traj in dataset:
-    #     for t in range(len(traj) - 1):
-    #         s, a = traj[t]
-    #         next_s, next_a = traj[t + 1]
-    #
-    #         w_sum = (1 - gamma ** (len(traj) - t - 1)) / (1 - gamma)
-    #         w = gamma ** (np.arange(t + 1, len(traj)) - t - 1) / w_sum
-    #
-    #         future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
-    #         future_idx = np.random.choice(future_idxs, p=w)
-    #         g, _ = traj[t + future_idx]
-    #
-    #         s = np.random.normal(loc=s, scale=0.2)
-    #         g = np.random.normal(loc=s, scale=0.2)
-    #
-    #         relabeled_dataset.append((s, a, g, next_s, next_a))
-    # relabeled_dataset = torch.Tensor(relabeled_dataset)
-    # print("Number of transitions in the relabeled dataset: {}".format(len(relabeled_dataset)))
-    #
-    # dataset = torch.utils.data.TensorDataset(relabeled_dataset)
+    relabeled_dataset = []
+    for traj in dataset:
+        for t in range(len(traj) - 1):
+            obs, a = traj[t]
+            next_s, next_a = traj[t + 1]
+
+            w_sum = (1 - gamma ** (len(traj) - t - 1)) / (1 - gamma)
+            w = gamma ** (np.arange(t + 1, len(traj)) - t - 1) / w_sum
+
+            future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
+            future_idx = np.random.choice(future_idxs, p=w)
+            g, _ = traj[t + future_idx]
+
+            # s = np.random.normal(loc=s, scale=0.2)
+            # g = np.random.normal(loc=s, scale=0.2)
+            # (B, C, H, W)
+            obs = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
+            g = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
+
+            # relabeled_dataset.append((obs, a, g, next_s, next_a))
+            relabeled_dataset.append((obs, g))
+    relabeled_dataset = torch.Tensor(relabeled_dataset)
+    print("Number of transitions in the relabeled dataset: {}".format(len(relabeled_dataset)))
+
+    dataset = torch.utils.data.TensorDataset(relabeled_dataset)
 
     # env = gym.make('kitchen-complete-v0')
     # dataset = env.get_dataset()
     # s = env.reset()
-
-    relabeled_s = []
-    relabeled_g = []
-    for traj in list(d4rl.sequence_dataset(env))[:100]:
-        for t in range(len(traj['observations']) - 1):
-            s, a = traj['observations'][t], traj['actions'][t]
-            next_s, next_a = traj['observations'][t + 1], traj['actions'][t + 1]
-            # next_s, next_a = traj[t + 1]
-
-            w_sum = (1 - gamma ** (len(traj['observations']) - t - 1)) / (1 - gamma)
-            w = gamma ** (np.arange(t + 1, len(traj['observations'])) - t - 1) / w_sum
-
-            future_idxs = np.arange(len(traj['observations'][t + 1:])) + 1  # check this
-            future_idx = np.random.choice(future_idxs, p=w)
-            g = traj['observations'][t + future_idx]
-
-            # g = np.random.normal(loc=s, scale=0.2)
-
-            # relabeled_dataset.append((s, a, g, next_s, next_a))
-            relabeled_s.append(s)
-            relabeled_g.append(g)
-    relabeled_s = torch.Tensor(relabeled_s)
-    relabeled_g = torch.Tensor(relabeled_g)
-    print("Number of transitions in the relabeled dataset: {}".format(len(relabeled_s)))
-
-    dataset = torch.utils.data.TensorDataset(relabeled_s, relabeled_g)
+    #
+    # relabeled_s = []
+    # relabeled_g = []
+    # for traj in list(d4rl.sequence_dataset(env))[:100]:
+    #     for t in range(len(traj['observations']) - 1):
+    #         s, a = traj['observations'][t], traj['actions'][t]
+    #         next_s, next_a = traj['observations'][t + 1], traj['actions'][t + 1]
+    #         # next_s, next_a = traj[t + 1]
+    #
+    #         w_sum = (1 - gamma ** (len(traj['observations']) - t - 1)) / (1 - gamma)
+    #         w = gamma ** (np.arange(t + 1, len(traj['observations'])) - t - 1) / w_sum
+    #
+    #         future_idxs = np.arange(len(traj['observations'][t + 1:])) + 1  # check this
+    #         future_idx = np.random.choice(future_idxs, p=w)
+    #         g = traj['observations'][t + future_idx]
+    #
+    #         # g = np.random.normal(loc=s, scale=0.2)
+    #
+    #         # relabeled_dataset.append((s, a, g, next_s, next_a))
+    #         relabeled_s.append(s)
+    #         relabeled_g.append(g)
+    # relabeled_s = torch.Tensor(relabeled_s)
+    # relabeled_g = torch.Tensor(relabeled_g)
+    # print("Number of transitions in the relabeled dataset: {}".format(len(relabeled_s)))
+    #
+    # dataset = torch.utils.data.TensorDataset(relabeled_s, relabeled_g)
 
     return torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, num_workers=opt.num_workers,
                                        shuffle=True, pin_memory=True)
@@ -154,10 +158,11 @@ def visualize(opt, encoder, dataloader):
     # s_repr = phi.apply(phi_params, s)
     # dataloader.
     reprs = []
-    for s, _ in dataloader:
-        # s = transition[0][:, 0]
+    for transition in dataloader:
+        s = transition[0][:, 0]
+        g = transition[0][:, 1]
 
-        repr = encoder(s.to(opt.gpus[0]))
+        repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])]))
 
         reprs.append(repr.cpu().detach().numpy())
     reprs = np.concatenate(reprs)
@@ -181,13 +186,14 @@ def visualize(opt, encoder, dataloader):
 def main():
     opt = parse_option()
 
-    print(f'Optimize: {opt.align_w:g} * loss_align(alpha={opt.align_alpha:g}) + {opt.unif_w:g} * loss_uniform(t={opt.unif_t:g})')
+    # print(f'Optimize: {opt.align_w:g} * loss_align(alpha={opt.align_alpha:g}) + {opt.unif_w:g} * loss_uniform(t={opt.unif_t:g})')
 
     torch.cuda.set_device(opt.gpus[0])
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 
     encoder = nn.DataParallel(SmallAlexNet(feat_dim=opt.feat_dim).to(opt.gpus[0]), opt.gpus)
+    # encoder = SmallAlexNet(feat_dim=opt.feat_dim).to(opt.gpus[0])
 
     optim = torch.optim.SGD(encoder.parameters(), lr=opt.lr,
                             momentum=opt.momentum, weight_decay=opt.weight_decay)
@@ -215,9 +221,9 @@ def main():
         loss_meter.reset()
         it_time_meter.reset()
         t0 = time.time()
-        for ii, (s, g) in enumerate(loader):
-            # s = transition[0][:, 0]
-            # g = transition[0][:, 2]
+        for ii, transition in enumerate(loader):
+            s = transition[0][:, 0]
+            g = transition[0][:, 1]
 
             optim.zero_grad()
             s_repr, g_repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])])).chunk(2)
@@ -247,7 +253,7 @@ def main():
     print(f'Saved to {ckpt_file}')
 
     fig = visualize(opt, encoder, loader)
-    fig_path = "figures/d4rl_adroit_3d_repr_vis.html"
+    fig_path = "figures/metaworld_door_open_v2_img_repr_vis.html"
     fig.write_html(fig_path, include_mathjax='cdn')
     print("Figure save to: {}".format(fig_path))
 

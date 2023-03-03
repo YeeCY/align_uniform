@@ -27,19 +27,22 @@ def main():
 
     # random policy
     # policy = np.ones(env.num_actions) / env.num_actions
-    for _ in range(num_trajs):
-        traj = []
+    for traj_idx in range(num_trajs):
+        print("traj: {}".format(traj_idx))
 
+        traj = []
         # state = env.reset()
         obs = env.reset()
-        imgs = []
+        # imgs = []
         for _ in range(traj_len):
             # action = np.random.choice(env.num_actions, p=policy)
-            # action = env.action_space.sample()
-            action = policy.get_action(obs)
+            if traj_idx % 2 == 0:
+                action = env.action_space.sample()
+            else:
+                action = policy.get_action(obs)
             # img = env.render(resolution=(32, 32), offscreen=True)
 
-            # W x H x C
+            # H x W x C
             img = env.render(resolution=(48, 48), offscreen=True, camera_name='corner2')
 
             # action = np.random.randint(low=0, high=5)
@@ -60,7 +63,8 @@ def main():
 
     dataset_dir = os.path.abspath("./data")
     # dataset_path = os.path.join(dataset_dir, "dataset.pkl")
-    dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_img.pkl")
+    # dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_img.pkl")
+    dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_mixed_img.pkl")
     os.makedirs(dataset_dir, exist_ok=True)
     with open(dataset_path, "wb+") as f:
         pkl.dump(dataset, f)
