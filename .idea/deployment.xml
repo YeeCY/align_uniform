@@ -9,6 +9,13 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="chongyiz@matrix-compute:22 agent (5)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/projects/rsalakhugroup/chongyiz/align_uniform" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
     </serverData>
     <option name="myAutoUpload" value="ALWAYS" />
   </component>
