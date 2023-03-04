@@ -77,7 +77,7 @@ def get_data_loader(opt, gamma=0.9):
     #     torchvision.datasets.STL10(opt.data_folder, 'train+unlabeled', download=True), transform=transform)
     # dataset = TwoAugUnsupervisedDataset(
     #     torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
-    dataset_path = os.path.abspath("data/metaworld_door_open_v2_mixed_img.pkl")
+    dataset_path = os.path.abspath("data/metaworld_door_open_v2_img.pkl")
     with open(dataset_path, "rb") as f:
         dataset = pkl.load(f)
     print("Load dataset from: {}".format(dataset_path))
@@ -210,10 +210,12 @@ def main():
     torch.backends.cudnn.benchmark = True
 
     encoder = nn.DataParallel(SmallAlexNet(feat_dim=opt.feat_dim).to(opt.gpus[0]), opt.gpus)
-    # encoder = SmallAlexNet(feat_dim=opt.feat_dim).to(opt.gpus[0])
+    skew_encoder = SmallAlexNet(in_channel=6, feat_dim=int(opt.feat_dim * (opt.feat_dim - 1) / 2)).to(opt.gpus[0])
 
     optim = torch.optim.SGD(encoder.parameters(), lr=opt.lr,
                             momentum=opt.momentum, weight_decay=opt.weight_decay)
+    skew_opt = torch.optim.SGD(skew_encoder.parameters(), lr=opt.lr,
+                              momentum=opt.momentum, weight_decay=opt.weight_decay)
     # scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, gamma=opt.lr_decay_rate,
     #                                                  milestones=opt.lr_decay_epochs)
     # optim = torch.optim.Adam(encoder.parameters(), lr=opt.lr, weight_decay=opt.weight_decay)
@@ -243,13 +245,28 @@ def main():
             g = transition[:, 1]
 
             optim.zero_grad()
+            skew_opt.zero_grad()
             s_repr, g_repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])])).chunk(2)
+            skew_elems = skew_encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])], dim=1))
+
+            skew_mats = torch.zeros([opt.batch_size, opt.feat_dim, opt.feat_dim], device=s_repr.device)
+            row, col = torch.triu_indices(opt.feat_dim, opt.feat_dim, 1, device=s_repr.device)
+            skew_mats[:, row, col] = skew_elems
+            row, col = torch.tril_indices(opt.feat_dim, opt.feat_dim, -1)
+            skew_mats[:, row, col] = -skew_elems
+            rot_mats = torch.exp(skew_mats)
+
+            # sanity check
+            assert torch.allclose(skew_mats, (skew_mats - skew_mats.permute([0, 2, 1])) / 2 + (skew_mats + skew_mats.permute([0, 2, 1])) / 2)
+
             # align_loss_val = align_loss(s_repr, g_repr, alpha=opt.align_alpha)
             # unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
             # loss = align_loss_val * opt.align_w + unif_loss_val * opt.unif_w
             # align_meter.update(align_loss_val, x.shape[0])
             # unif_meter.update(unif_loss_val)
 
+            # rotated_g_repr = torch.squeeze(rot_mats @ g_repr[:, :, None])
+            # logits = s_repr @ rotated_g_repr.T
             logits = s_repr @ g_repr.T
             labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
             loss = torch.mean(cpc_loss(logits, labels))
@@ -257,6 +274,7 @@ def main():
             loss_meter.update(loss, s_repr.shape[0])
             loss.backward()
             optim.step()
+            skew_opt.step()
             it_time_meter.update(time.time() - t0)
             if ii % opt.log_interval == 0:
                 # print(f"Epoch {epoch}/{opt.epochs}\tIt {ii}/{len(loader)}\t" +
