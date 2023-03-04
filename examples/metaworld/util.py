@@ -63,7 +63,7 @@ class AugDataset(torch.utils.data.Dataset):
         images1 = Image.fromarray(images1)
         images2 = Image.fromarray(images2)
 
-        images = torch.stack([self.transform(images1), self.transform(images1)])
+        images = torch.stack([self.transform(images1), self.transform(images2)])
         return images
 
     def __len__(self):

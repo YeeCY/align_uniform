@@ -63,10 +63,10 @@ def parse_option():
 
 def get_data_loader(opt, gamma=0.9):
     transform = torchvision.transforms.Compose([
-        torchvision.transforms.RandomResizedCrop(48, scale=(0.8, 1)),
-        torchvision.transforms.RandomHorizontalFlip(),
-        torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
-        torchvision.transforms.RandomGrayscale(p=0.2),
+        # torchvision.transforms.RandomResizedCrop(48, scale=(0.8, 1)),
+        # torchvision.transforms.RandomHorizontalFlip(),
+        # torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
+        # torchvision.transforms.RandomGrayscale(p=0.2),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(
             (0.44087801806139126, 0.42790631331699347, 0.3867879370752931),
@@ -83,33 +83,33 @@ def get_data_loader(opt, gamma=0.9):
     print("Load dataset from: {}".format(dataset_path))
     print("Number of transitions in the dataset: {}".format(sum([len(traj) for traj in dataset])))
 
-    # relabeled_dataset = []
-    # for traj in dataset:
-    #     for t in range(len(traj) - 1):
-    #         obs, a = traj[t]
-    #         next_s, next_a = traj[t + 1]
-    #
-    #         w_sum = (1 - gamma ** (len(traj) - t - 1)) / (1 - gamma)
-    #         w = gamma ** (np.arange(t + 1, len(traj)) - t - 1) / w_sum
-    #
-    #         future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
-    #         future_idx = np.random.choice(future_idxs, p=w)
-    #         g, _ = traj[t + future_idx]
-    #
-    #         # s = np.random.normal(loc=s, scale=0.2)
-    #         # g = np.random.normal(loc=s, scale=0.2)
-    #         # (B, C, H, W)
-    #         # obs = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
-    #         # g = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
-    #         # obs = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
-    #         # g = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
-    #
-    #         obs = obs.reshape([48, 48, 3])
-    #         g = obs.reshape([48, 48, 3])
-    #
-    #         # relabeled_dataset.append((obs, a, g, next_s, next_a))
-    #         relabeled_dataset.append((obs, g))
-    # relabeled_dataset = np.array(relabeled_dataset)
+    relabeled_dataset = []
+    for traj in dataset:
+        for t in range(len(traj) - 1):
+            obs, a = traj[t]
+            next_s, next_a = traj[t + 1]
+
+            w_sum = (1 - gamma ** (len(traj) - t - 1)) / (1 - gamma)
+            w = gamma ** (np.arange(t + 1, len(traj)) - t - 1) / w_sum
+
+            future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
+            future_idx = np.random.choice(future_idxs, p=w)
+            g, _ = traj[t + future_idx]
+
+            # s = np.random.normal(loc=s, scale=0.2)
+            # g = np.random.normal(loc=s, scale=0.2)
+            # (B, C, H, W)
+            # obs = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
+            # g = g.reshape([48, 48, 3]).transpose(2, 0, 1)
+            # obs = obs.reshape([48, 48, 3]).transpose(2, 0, 1)
+            # g = g.reshape([48, 48, 3]).transpose(2, 0, 1)
+
+            obs = obs.reshape([48, 48, 3])
+            g = g.reshape([48, 48, 3])
+
+            # relabeled_dataset.append((obs, a, g, next_s, next_a))
+            relabeled_dataset.append((obs, g))
+    relabeled_dataset = np.array(relabeled_dataset)
     # dataset_dir = os.path.abspath("./data")
     # dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_mixed_img_relabeled.pkl")
     # os.makedirs(dataset_dir, exist_ok=True)
@@ -118,9 +118,9 @@ def get_data_loader(opt, gamma=0.9):
     # print("Dataset saved to: {}".format(dataset_path))
     # exit()
 
-    dataset_path = os.path.abspath("data/metaworld_door_open_v2_mixed_img_relabeled.pkl")
-    with open(dataset_path, "rb") as f:
-        relabeled_dataset = pkl.load(f)
+    # dataset_path = os.path.abspath("data/metaworld_door_open_v2_mixed_img_relabeled.pkl")
+    # with open(dataset_path, "rb") as f:
+    #     relabeled_dataset = pkl.load(f)
     # relabeled_dataset = torch.Tensor(relabeled_dataset)
     print("Number of transitions in the relabeled dataset: {}".format(len(relabeled_dataset)))
 
