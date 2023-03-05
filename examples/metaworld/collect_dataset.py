@@ -6,7 +6,7 @@ import gym
 import imageio
 
 from metaworld.envs import ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE
-from metaworld.policies import SawyerDoorOpenV2Policy
+from metaworld.policies import (SawyerDoorOpenV2Policy, SawyerDoorCloseV2Policy)
 
 
 def main():
@@ -21,14 +21,22 @@ def main():
 
     # env = GridEnv()
     door_open_goal_observable_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["door-open-v2-goal-observable"]
+    door_close_goal_observable_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["door-close-v2-goal-observable"]
 
-    env = door_open_goal_observable_cls()
-    policy = SawyerDoorOpenV2Policy()
+    envs = [door_open_goal_observable_cls(), door_close_goal_observable_cls()]
+    policies = [SawyerDoorOpenV2Policy(), SawyerDoorCloseV2Policy()]
 
     # random policy
     # policy = np.ones(env.num_actions) / env.num_actions
     # imgs = []
     for traj_idx in range(num_trajs):
+        if traj_idx < 100:
+            env = envs[0]
+            policy = policies[0]
+        else:
+            env = envs[1]
+            policy = policies[1]
+        print("env: {}".format(env.__class__))
         print("traj: {}".format(traj_idx))
 
         traj = []
@@ -64,9 +72,9 @@ def main():
     # imageio.mimsave(video_path, imgs, fps=20)
     # print("Save video to: {}".format(video_path))
 
-    dataset_dir = os.path.abspath("./data")
+    dataset_dir = os.path.abspath("data")
     # dataset_path = os.path.join(dataset_dir, "dataset.pkl")
-    dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_img.pkl")
+    dataset_path = os.path.join(dataset_dir, "metaworld_door_v2_img.pkl")
     # dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_mixed_img.pkl")
     # dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_random_img.pkl")
     os.makedirs(dataset_dir, exist_ok=True)

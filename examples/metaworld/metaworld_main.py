@@ -63,10 +63,10 @@ def parse_option():
 
 def get_data_loader(opt, gamma=0.9):
     transform = torchvision.transforms.Compose([
-        # torchvision.transforms.RandomResizedCrop(48, scale=(0.8, 1)),
-        # torchvision.transforms.RandomHorizontalFlip(),
-        # torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
-        # torchvision.transforms.RandomGrayscale(p=0.2),
+        torchvision.transforms.RandomResizedCrop(48, scale=(0.8, 1)),
+        torchvision.transforms.RandomHorizontalFlip(),
+        torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
+        torchvision.transforms.RandomGrayscale(p=0.2),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(
             (0.44087801806139126, 0.42790631331699347, 0.3867879370752931),
@@ -77,6 +77,7 @@ def get_data_loader(opt, gamma=0.9):
     #     torchvision.datasets.STL10(opt.data_folder, 'train+unlabeled', download=True), transform=transform)
     # dataset = TwoAugUnsupervisedDataset(
     #     torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
+    # dataset_path = os.path.abspath("data/metaworld_door_v2_img.pkl")
     dataset_path = os.path.abspath("data/metaworld_door_open_v2_img.pkl")
     with open(dataset_path, "rb") as f:
         dataset = pkl.load(f)
@@ -249,10 +250,10 @@ def main():
             s_repr, g_repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])])).chunk(2)
             skew_elems = skew_encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])], dim=1))
 
-            skew_mats = torch.zeros([opt.batch_size, opt.feat_dim, opt.feat_dim], device=s_repr.device)
+            skew_mats = torch.zeros([s_repr.shape[0], opt.feat_dim, opt.feat_dim], device=s_repr.device)
             row, col = torch.triu_indices(opt.feat_dim, opt.feat_dim, 1, device=s_repr.device)
             skew_mats[:, row, col] = skew_elems
-            row, col = torch.tril_indices(opt.feat_dim, opt.feat_dim, -1)
+            row, col = torch.tril_indices(opt.feat_dim, opt.feat_dim, -1, device=s_repr.device)
             skew_mats[:, row, col] = -skew_elems
             rot_mats = torch.exp(skew_mats)
 
