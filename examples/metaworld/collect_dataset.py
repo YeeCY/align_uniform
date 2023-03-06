@@ -72,11 +72,12 @@ def main():
             action = policy.get_action(obs)
             # img = env.render(resolution=(32, 32), offscreen=True)
 
+            # cameras: corner3, corner, corner2, topview, gripperPOV, behindGripper
             # H x W x C
             # img = env.render(resolution=(48, 48), offscreen=True, camera_name='topview')
             # img = env.render(resolution=(480, 480), offscreen=True, camera_name='topview')
-            img = env.render(resolution=(48, 48), offscreen=True)
-            # img = env.render(resolution=(480, 480), offscreen=True)
+            img = env.render(resolution=(48, 48), offscreen=True, camera_name='corner')
+            # img = env.render(resolution=(480, 480), offscreen=True, camera_name='corner')
 
             # action = np.random.randint(low=0, high=5)
             # traj.append((obs, action))
@@ -87,7 +88,7 @@ def main():
 
         dataset.append(traj)
 
-    # Save Video
+    # # Save Video
     # video_dir = os.path.abspath("./videos")
     # video_path = os.path.join(video_dir, "metaworld_10_tasks_video.mp4")
     # # imgs = np.asarray(imgs)

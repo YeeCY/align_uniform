@@ -63,9 +63,9 @@ def parse_option():
 
 def get_data_loader(opt, gamma=0.9):
     transform = torchvision.transforms.Compose([
-        torchvision.transforms.RandomResizedCrop(48, scale=(0.8, 1)),
-        torchvision.transforms.RandomHorizontalFlip(),
-        torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
+        # torchvision.transforms.RandomResizedCrop(48, scale=(0.8, 1)),
+        # torchvision.transforms.RandomHorizontalFlip(),
+        # torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
         # torchvision.transforms.RandomGrayscale(p=0.2),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(
@@ -78,7 +78,8 @@ def get_data_loader(opt, gamma=0.9):
     # dataset = TwoAugUnsupervisedDataset(
     #     torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
     # dataset_path = os.path.abspath("data/metaworld_door_v2_img.pkl")
-    dataset_path = os.path.abspath("data/metaworld_door_open_v2_mixed_img.pkl")
+    # dataset_path = os.path.abspath("data/metaworld_10_tasks_img.pkl")
+    dataset_path = os.path.abspath("data/metaworld_door_open_v2_random_img.pkl")
     with open(dataset_path, "rb") as f:
         dataset = pkl.load(f)
     print("Load dataset from: {}".format(dataset_path))
