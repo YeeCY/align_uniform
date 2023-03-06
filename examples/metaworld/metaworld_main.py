@@ -66,7 +66,7 @@ def get_data_loader(opt, gamma=0.9):
         torchvision.transforms.RandomResizedCrop(48, scale=(0.8, 1)),
         torchvision.transforms.RandomHorizontalFlip(),
         torchvision.transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
-        torchvision.transforms.RandomGrayscale(p=0.2),
+        # torchvision.transforms.RandomGrayscale(p=0.2),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(
             (0.44087801806139126, 0.42790631331699347, 0.3867879370752931),
@@ -78,7 +78,7 @@ def get_data_loader(opt, gamma=0.9):
     # dataset = TwoAugUnsupervisedDataset(
     #     torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
     # dataset_path = os.path.abspath("data/metaworld_door_v2_img.pkl")
-    dataset_path = os.path.abspath("data/metaworld_door_open_v2_img.pkl")
+    dataset_path = os.path.abspath("data/metaworld_door_open_v2_mixed_img.pkl")
     with open(dataset_path, "rb") as f:
         dataset = pkl.load(f)
     print("Load dataset from: {}".format(dataset_path))
@@ -245,6 +245,18 @@ def main():
             s = transition[:, 0]
             g = transition[:, 1]
 
+            # import matplotlib.pyplot as plt
+            # aug_s = s[0].cpu().detach().numpy().transpose(1, 2, 0)
+            # aug_g = g[0].cpu().detach().numpy().transpose(1, 2, 0)
+            #
+            # aug_s = (aug_s - aug_s.min()) / (aug_s.max() - aug_s.min())
+            # aug_g = (aug_g - aug_g.min()) / (aug_g.max() - aug_g.min())
+            #
+            # plt.imsave("figures/aug_s.png", aug_s)
+            # plt.imsave("figures/aug_g.png", aug_g)
+            #
+            # exit()
+
             optim.zero_grad()
             skew_opt.zero_grad()
             s_repr, g_repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])])).chunk(2)
@@ -268,9 +280,15 @@ def main():
 
             # rotated_g_repr = torch.squeeze(rot_mats @ g_repr[:, :, None])
             # logits = s_repr @ rotated_g_repr.T
-            logits = s_repr @ g_repr.T
+            logits = s_repr @ g_repr.T / 0.5
             labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
             loss = torch.mean(cpc_loss(logits, labels))
+            # unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
+            # loss += unif_loss_val
+            # weights = torch.ones_like(logits)
+            # weights[labels, labels] = 1 / logits.shape[0]
+
+            # loss = torch.mean(cpc_loss(logits, labels))
 
             loss_meter.update(loss, s_repr.shape[0])
             loss.backward()

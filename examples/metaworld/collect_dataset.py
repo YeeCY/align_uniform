@@ -6,7 +6,18 @@ import gym
 import imageio
 
 from metaworld.envs import ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE
-from metaworld.policies import (SawyerDoorOpenV2Policy, SawyerDoorCloseV2Policy)
+from metaworld.policies import (
+    SawyerAssemblyV2Policy,
+    SawyerBasketballV2Policy,
+    SawyerBinPickingV2Policy,
+    SawyerBoxCloseV2Policy,
+    SawyerButtonPressTopdownV2Policy,
+    SawyerCoffeeButtonV2Policy,
+    SawyerDialTurnV2Policy,
+    SawyerDoorOpenV2Policy,
+    SawyerDoorUnlockV2Policy,
+    SawyerDrawerCloseV2Policy,
+)
 
 
 def main():
@@ -20,22 +31,31 @@ def main():
     dataset = []
 
     # env = GridEnv()
-    door_open_goal_observable_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["door-open-v2-goal-observable"]
-    door_close_goal_observable_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["door-close-v2-goal-observable"]
+    assembly_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["assembly-v2-goal-observable"]
+    basketball_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["basketball-v2-goal-observable"]
+    bin_picking_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["bin-picking-v2-goal-observable"]
+    box_close_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["box-close-v2-goal-observable"]
+    button_press_topdown_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["button-press-topdown-v2-goal-observable"]
+    coffee_button_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["coffee-button-v2-goal-observable"]
+    dial_turn_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["dial-turn-v2-goal-observable"]
+    door_open_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["door-open-v2-goal-observable"]
+    door_unlock_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["door-lock-v2-goal-observable"]
+    drawer_close_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE["drawer-close-v2-goal-observable"]
 
-    envs = [door_open_goal_observable_cls(), door_close_goal_observable_cls()]
-    policies = [SawyerDoorOpenV2Policy(), SawyerDoorCloseV2Policy()]
+    envs_cls = [assembly_cls, basketball_cls, bin_picking_cls, box_close_cls, button_press_topdown_cls,
+                coffee_button_cls, dial_turn_cls, door_open_cls, door_unlock_cls, drawer_close_cls]
+    policies = [SawyerAssemblyV2Policy(), SawyerBasketballV2Policy(), SawyerBinPickingV2Policy(),
+                SawyerBoxCloseV2Policy(), SawyerButtonPressTopdownV2Policy(), SawyerCoffeeButtonV2Policy(),
+                SawyerDialTurnV2Policy(), SawyerDoorOpenV2Policy(), SawyerDoorUnlockV2Policy(),
+                SawyerDrawerCloseV2Policy()]
 
     # random policy
     # policy = np.ones(env.num_actions) / env.num_actions
     # imgs = []
     for traj_idx in range(num_trajs):
-        if traj_idx < 100:
-            env = envs[0]
-            policy = policies[0]
-        else:
-            env = envs[1]
-            policy = policies[1]
+        env_idx = traj_idx % 10
+        env = envs_cls[env_idx](seed=traj_idx)
+        policy = policies[env_idx]
         print("env: {}".format(env.__class__))
         print("traj: {}".format(traj_idx))
 
@@ -53,8 +73,10 @@ def main():
             # img = env.render(resolution=(32, 32), offscreen=True)
 
             # H x W x C
-            img = env.render(resolution=(48, 48), offscreen=True, camera_name='topview')
+            # img = env.render(resolution=(48, 48), offscreen=True, camera_name='topview')
             # img = env.render(resolution=(480, 480), offscreen=True, camera_name='topview')
+            img = env.render(resolution=(48, 48), offscreen=True)
+            # img = env.render(resolution=(480, 480), offscreen=True)
 
             # action = np.random.randint(low=0, high=5)
             # traj.append((obs, action))
@@ -67,14 +89,14 @@ def main():
 
     # Save Video
     # video_dir = os.path.abspath("./videos")
-    # video_path = os.path.join(video_dir, "metaworld_door_open_v2_video.mp4")
+    # video_path = os.path.join(video_dir, "metaworld_10_tasks_video.mp4")
     # # imgs = np.asarray(imgs)
     # imageio.mimsave(video_path, imgs, fps=20)
     # print("Save video to: {}".format(video_path))
 
     dataset_dir = os.path.abspath("data")
     # dataset_path = os.path.join(dataset_dir, "dataset.pkl")
-    dataset_path = os.path.join(dataset_dir, "metaworld_door_v2_img.pkl")
+    dataset_path = os.path.join(dataset_dir, "metaworld_10_tasks_img.pkl")
     # dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_mixed_img.pkl")
     # dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_random_img.pkl")
     os.makedirs(dataset_dir, exist_ok=True)

@@ -188,6 +188,7 @@ def main():
     torch.backends.cudnn.benchmark = True
 
     encoder = nn.DataParallel(FeedForwardNet(in_dim=29, feat_dim=opt.feat_dim).to(opt.gpus[0]), opt.gpus)
+    # encoder = nn.DataParallel(FeedForwardNet(in_dim=2, feat_dim=opt.feat_dim).to(opt.gpus[0]), opt.gpus)
 
     optim = torch.optim.SGD(encoder.parameters(), lr=opt.lr,
                             momentum=opt.momentum, weight_decay=opt.weight_decay)
@@ -221,15 +222,15 @@ def main():
 
             optim.zero_grad()
             s_repr, g_repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])])).chunk(2)
-            align_loss_val = align_loss(s_repr, g_repr, alpha=opt.align_alpha)
-            unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
-            loss = align_loss_val * opt.align_w + unif_loss_val * opt.unif_w
+            # align_loss_val = align_loss(s_repr, g_repr, alpha=opt.align_alpha)
+            # unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
+            # loss = align_loss_val * opt.align_w + unif_loss_val * opt.unif_w
             # align_meter.update(align_loss_val, x.shape[0])
             # unif_meter.update(unif_loss_val)
 
-            # logits = s_repr @ g_repr.T / 0.5
-            # labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
-            # loss = torch.mean(cpc_loss(logits, labels))
+            logits = s_repr @ g_repr.T / 0.5
+            labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
+            loss = torch.mean(cpc_loss(logits, labels))
 
             loss_meter.update(loss, s_repr.shape[0])
             loss.backward()
