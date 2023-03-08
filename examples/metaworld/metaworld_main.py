@@ -78,15 +78,15 @@ def get_data_loader(opt, gamma=0.9):
     # dataset = TwoAugUnsupervisedDataset(
     #     torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
     # dataset_path = os.path.abspath("data/metaworld_door_v2_img.pkl")
-    # dataset_path = os.path.abspath("data/metaworld_10_tasks_img.pkl")
-    dataset_path = os.path.abspath("data/metaworld_door_open_v2_random_img.pkl")
+    dataset_path = os.path.abspath("data/metaworld_10_tasks_img.pkl")
+    # dataset_path = os.path.abspath("data/metaworld_door_open_v2_random_img.pkl")
     with open(dataset_path, "rb") as f:
         dataset = pkl.load(f)
     print("Load dataset from: {}".format(dataset_path))
     print("Number of transitions in the dataset: {}".format(sum([len(traj) for traj in dataset])))
 
     relabeled_dataset = []
-    for traj in dataset:
+    for traj_idx, traj in enumerate(dataset[:500]):
         for t in range(len(traj) - 1):
             obs, a = traj[t]
             next_s, next_a = traj[t + 1]
@@ -97,6 +97,7 @@ def get_data_loader(opt, gamma=0.9):
             future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
             future_idx = np.random.choice(future_idxs, p=w)
             g, _ = traj[t + future_idx]
+            # g, _ = dataset[(traj_idx + 1) % len(dataset)][t + future_idx]
 
             # s = np.random.normal(loc=s, scale=0.2)
             # g = np.random.normal(loc=s, scale=0.2)
@@ -308,7 +309,8 @@ def main():
     print(f'Saved to {ckpt_file}')
 
     fig = visualize(opt, encoder, loader)
-    fig_path = "figures/metaworld_door_open_v2_img_repr_vis.html"
+    # fig_path = "figures/metaworld_door_open_v2_img_repr_vis.html"
+    fig_path = "figures/metaworld_10_tasks_img_repr_vis.html"
     fig.write_html(fig_path, include_mathjax='cdn')
     print("Figure save to: {}".format(fig_path))
 

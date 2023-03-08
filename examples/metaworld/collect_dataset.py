@@ -21,7 +21,7 @@ from metaworld.policies import (
 
 
 def main():
-    num_trajs = 200
+    num_trajs = 2000
     traj_len = 200
     # dataset = [
     #     [(0, 3), (1, 3), (2, 3), (3, 4), (5, 4), (9, 1), (8, 1), (7, 1), (6, 0)],
