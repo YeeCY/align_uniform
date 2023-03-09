@@ -61,7 +61,7 @@ def parse_option():
     return opt
 
 
-def get_data_loader(opt, gamma=0.9):
+def get_data_loader(opt, gamma=0.99):
     transform = torchvision.transforms.Compose([
         # torchvision.transforms.RandomResizedCrop(48, scale=(0.8, 1)),
         # torchvision.transforms.RandomHorizontalFlip(),
@@ -79,7 +79,8 @@ def get_data_loader(opt, gamma=0.9):
     #     torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
     # dataset_path = os.path.abspath("data/metaworld_door_v2_img.pkl")
     # dataset_path = os.path.abspath("data/metaworld_10_tasks_img.pkl")
-    dataset_path = os.path.abspath("data/metaworld_10_tasks_img_timestep_mixed.pkl")
+    # dataset_path = os.path.abspath("data/metaworld_10_tasks_img_timestep_mixed.pkl")
+    dataset_path = os.path.abspath("data/metaworld_10_tasks_img_random.pkl")
     # dataset_path = os.path.abspath("data/metaworld_door_open_v2_random_img.pkl")
     with open(dataset_path, "rb") as f:
         dataset = pkl.load(f)
@@ -87,17 +88,28 @@ def get_data_loader(opt, gamma=0.9):
     print("Number of transitions in the dataset: {}".format(sum([len(traj) for traj in dataset])))
 
     relabeled_dataset = []
-    for traj_idx, traj in enumerate(dataset[:500]):
+    for traj_idx, traj in enumerate(dataset):
         for t in range(len(traj) - 1):
             obs, a = traj[t]
             next_s, next_a = traj[t + 1]
 
-            w_sum = (1 - gamma ** (len(traj) - t - 1)) / (1 - gamma)
-            w = gamma ** (np.arange(t + 1, len(traj)) - t - 1) / w_sum
+            # DEBUG
+            # positive examples
+            # s = phi[traj[i]]
+            # pos_sum = (1 - gamma ** (len(traj) - i)) / (1 - gamma)
+            # for j in range(i, len(traj)):
+            #     w = gamma ** (j - i) / pos_sum
+            #     logits = s @ phi[traj[j]]
+            #     loss += w * optax.sigmoid_binary_cross_entropy(logits=logits, labels=1)
 
-            future_idxs = np.arange(len(traj[t + 1:])) + 1  # check this
-            future_idx = np.random.choice(future_idxs, p=w)
-            g, _ = traj[t + future_idx]
+            # w_sum = (1 - gamma ** (len(traj) - t - 1)) / (1 - gamma)
+            # w = gamma ** (np.arange(t + 1, len(traj)) - t - 1) / w_sum
+            probs = gamma ** np.arange(len(traj) - t - 1)
+            probs = probs / np.sum(probs, keepdims=True)
+
+            future_ts = np.arange(t + 1, len(traj))
+            future_t = np.random.choice(future_ts, p=probs)
+            g, _ = traj[future_t]
             # g, _ = dataset[(traj_idx + 1) % len(dataset)][t + future_idx]
 
             # s = np.random.normal(loc=s, scale=0.2)
@@ -285,7 +297,7 @@ def main():
             # logits = s_repr @ rotated_g_repr.T
             logits = s_repr @ g_repr.T / 0.5
             labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
-            loss = torch.mean(cpc_loss(logits, labels))
+            loss = torch.mean(cpc_loss(logits, labels) + 0.1 * torch.logsumexp(logits, dim=1) ** 2)
             # unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
             # loss += unif_loss_val
             # weights = torch.ones_like(logits)
@@ -311,7 +323,8 @@ def main():
 
     fig = visualize(opt, encoder, loader)
     # fig_path = "figures/metaworld_door_open_v2_img_repr_vis.html"
-    fig_path = "figures/metaworld_10_tasks_img_timestep_mixed_repr_vis.html"
+    # fig_path = "figures/metaworld_10_tasks_img_timestep_mixed_repr_vis.html"
+    fig_path = "figures/metaworld_10_tasks_img_random_repr_vis.html"
     fig.write_html(fig_path, include_mathjax='cdn')
     print("Figure save to: {}".format(fig_path))
 
