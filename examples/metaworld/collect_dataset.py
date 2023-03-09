@@ -63,18 +63,21 @@ def main():
         # state = env.reset()
         obs = env.reset()
 
-        random_action_start_step = np.random.randint(1, traj_len)
+        # random_action_start_step = np.random.randint(1, traj_len)
+        random_action_start_steps = np.array([10, 20, 40, 60, 80, 100, 120, 200 ])
+        # random_action = (np.random.rand() >= 0.5)
+
         for t in range(traj_len):
             # action = np.random.choice(env.num_actions, p=policy)
             # action = env.action_space.sample()
-            # if t % 2 == 0:
-            #     action = env.action_space.sample()
-            # else:
-            #     action = policy.get_action(obs)
-            if t < random_action_start_step:
+            if t < np.random.choice(random_action_start_steps):
                 action = policy.get_action(obs)
             else:
                 action = env.action_space.sample()
+            # if random_action:
+            #     action = env.action_space.sample()
+            # else:
+            #     action = policy.get_action(obs)
             # action = policy.get_action(obs)
             # img = env.render(resolution=(32, 32), offscreen=True)
 
@@ -94,9 +97,9 @@ def main():
 
         dataset.append(traj)
 
-    # # Save Video
+    # Save Video
     # video_dir = os.path.abspath("./videos")
-    # video_path = os.path.join(video_dir, "metaworld_10_tasks_video.mp4")
+    # video_path = os.path.join(video_dir, "metaworld_10_tasks_mixed_action_video.mp4")
     # # imgs = np.asarray(imgs)
     # imageio.mimsave(video_path, imgs, fps=20)
     # print("Save video to: {}".format(video_path))
