@@ -108,8 +108,8 @@ def main():
             # H x W x C
             # img = env.render(resolution=(48, 48), offscreen=True, camera_name='topview')
             # img = env.render(resolution=(480, 480), offscreen=True, camera_name='topview')
-            # img = env.render(resolution=(48, 48), offscreen=True, camera_name='corner')
-            img = env.render(resolution=(480, 480), offscreen=True, camera_name='corner')
+            img = env.render(resolution=(48, 48), offscreen=True, camera_name='corner')
+            # img = env.render(resolution=(480, 480), offscreen=True, camera_name='corner')
 
             # action = np.random.randint(low=0, high=5)
             # traj.append((obs, action))
@@ -157,8 +157,8 @@ def main():
             # H x W x C
             # img = env.render(resolution=(48, 48), offscreen=True, camera_name='topview')
             # img = env.render(resolution=(480, 480), offscreen=True, camera_name='topview')
-            # img = env.render(resolution=(48, 48), offscreen=True, camera_name='corner')
-            img = env.render(resolution=(480, 480), offscreen=True, camera_name='corner')
+            img = env.render(resolution=(48, 48), offscreen=True, camera_name='corner')
+            # img = env.render(resolution=(480, 480), offscreen=True, camera_name='corner')
 
             imgs.append(img)
             traj.append((img.reshape(-1), action))
