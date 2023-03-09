@@ -21,7 +21,7 @@ from metaworld.policies import (
 
 
 def main():
-    num_trajs = 2000
+    num_trajs = 1000
     traj_len = 200
     # dataset = [
     #     [(0, 3), (1, 3), (2, 3), (3, 4), (5, 4), (9, 1), (8, 1), (7, 1), (6, 0)],
@@ -62,14 +62,20 @@ def main():
         traj = []
         # state = env.reset()
         obs = env.reset()
-        for _ in range(traj_len):
+
+        random_action_start_step = np.random.randint(1, traj_len)
+        for t in range(traj_len):
             # action = np.random.choice(env.num_actions, p=policy)
             # action = env.action_space.sample()
-            # if traj_idx % 2 == 0:
+            # if t % 2 == 0:
             #     action = env.action_space.sample()
             # else:
             #     action = policy.get_action(obs)
-            action = policy.get_action(obs)
+            if t < random_action_start_step:
+                action = policy.get_action(obs)
+            else:
+                action = env.action_space.sample()
+            # action = policy.get_action(obs)
             # img = env.render(resolution=(32, 32), offscreen=True)
 
             # cameras: corner3, corner, corner2, topview, gripperPOV, behindGripper
@@ -97,7 +103,7 @@ def main():
 
     dataset_dir = os.path.abspath("data")
     # dataset_path = os.path.join(dataset_dir, "dataset.pkl")
-    dataset_path = os.path.join(dataset_dir, "metaworld_10_tasks_img.pkl")
+    dataset_path = os.path.join(dataset_dir, "metaworld_10_tasks_img_timestep_mixed.pkl")
     # dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_mixed_img.pkl")
     # dataset_path = os.path.join(dataset_dir, "metaworld_door_open_v2_random_img.pkl")
     os.makedirs(dataset_dir, exist_ok=True)

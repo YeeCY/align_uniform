@@ -78,7 +78,8 @@ def get_data_loader(opt, gamma=0.9):
     # dataset = TwoAugUnsupervisedDataset(
     #     torchvision.datasets.CIFAR10(opt.data_folder, train=False, download=True), transform=transform)
     # dataset_path = os.path.abspath("data/metaworld_door_v2_img.pkl")
-    dataset_path = os.path.abspath("data/metaworld_10_tasks_img.pkl")
+    # dataset_path = os.path.abspath("data/metaworld_10_tasks_img.pkl")
+    dataset_path = os.path.abspath("data/metaworld_10_tasks_img_timestep_mixed.pkl")
     # dataset_path = os.path.abspath("data/metaworld_door_open_v2_random_img.pkl")
     with open(dataset_path, "rb") as f:
         dataset = pkl.load(f)
@@ -310,7 +311,7 @@ def main():
 
     fig = visualize(opt, encoder, loader)
     # fig_path = "figures/metaworld_door_open_v2_img_repr_vis.html"
-    fig_path = "figures/metaworld_10_tasks_img_repr_vis.html"
+    fig_path = "figures/metaworld_10_tasks_img_timestep_mixed_repr_vis.html"
     fig.write_html(fig_path, include_mathjax='cdn')
     print("Figure save to: {}".format(fig_path))
 
