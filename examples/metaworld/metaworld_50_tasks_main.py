@@ -285,7 +285,8 @@ def main():
             # logits = s_repr @ rotated_g_repr.T
             logits = s_repr @ g_repr.T / 0.5
             labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
-            loss = torch.mean(cpc_loss(logits, labels))
+            # loss = torch.mean(cpc_loss(logits, labels))
+            loss = torch.mean(cpc_loss(logits, labels) + 1.0 * torch.logsumexp(logits, dim=1) ** 2)
             # unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
             # loss += unif_loss_val
             # weights = torch.ones_like(logits)
