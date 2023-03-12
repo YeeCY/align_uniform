@@ -215,13 +215,13 @@ def main():
     encoder = nn.DataParallel(SmallAlexNet(feat_dim=opt.feat_dim).to(opt.gpus[0]), opt.gpus)
     skew_encoder = SmallAlexNet(in_channel=6, feat_dim=int(opt.feat_dim * (opt.feat_dim - 1) / 2)).to(opt.gpus[0])
 
-    optim = torch.optim.SGD(encoder.parameters(), lr=opt.lr,
-                            momentum=opt.momentum, weight_decay=opt.weight_decay)
-    skew_opt = torch.optim.SGD(skew_encoder.parameters(), lr=opt.lr,
-                              momentum=opt.momentum, weight_decay=opt.weight_decay)
+    # optim = torch.optim.SGD(encoder.parameters(), lr=opt.lr,
+    #                         momentum=opt.momentum, weight_decay=opt.weight_decay)
+    # skew_opt = torch.optim.SGD(skew_encoder.parameters(), lr=opt.lr,
+    #                           momentum=opt.momentum, weight_decay=opt.weight_decay)
     # scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, gamma=opt.lr_decay_rate,
     #                                                  milestones=opt.lr_decay_epochs)
-    # optim = torch.optim.Adam(encoder.parameters(), lr=opt.lr, weight_decay=opt.weight_decay)
+    optim = torch.optim.Adam(encoder.parameters(), lr=opt.lr, weight_decay=opt.weight_decay)
 
     train_dataset_path = os.path.abspath("data/metaworld_50_tasks_img_train.pkl")
     loader = get_data_loader(train_dataset_path, opt)
@@ -261,7 +261,7 @@ def main():
             # exit()
 
             optim.zero_grad()
-            skew_opt.zero_grad()
+            # skew_opt.zero_grad()
             s_repr, g_repr = encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])])).chunk(2)
             skew_elems = skew_encoder(torch.cat([s.to(opt.gpus[0]), g.to(opt.gpus[0])], dim=1))
 

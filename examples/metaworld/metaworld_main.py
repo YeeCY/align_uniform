@@ -9,6 +9,7 @@ import torch.nn as nn
 
 import plotly.graph_objects as go
 import pickle as pkl
+import matplotlib.pyplot as plt
 
 import gym
 # import d4rl  # Import required to register environments, you may need to also import the submodule
@@ -250,6 +251,9 @@ def main():
     unif_meter = AverageMeter('uniform_loss')
     loss_meter = AverageMeter('total_loss')
     it_time_meter = AverageMeter('iter_time')
+    loss_vec = []
+    uniformity_vec = []
+    logsumexp_vec = []
     for epoch in range(opt.epochs):
         align_meter.reset()
         unif_meter.reset()
@@ -288,7 +292,7 @@ def main():
             assert torch.allclose(skew_mats, (skew_mats - skew_mats.permute([0, 2, 1])) / 2 + (skew_mats + skew_mats.permute([0, 2, 1])) / 2)
 
             # align_loss_val = align_loss(s_repr, g_repr, alpha=opt.align_alpha)
-            # unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
+            unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
             # loss = align_loss_val * opt.align_w + unif_loss_val * opt.unif_w
             # align_meter.update(align_loss_val, x.shape[0])
             # unif_meter.update(unif_loss_val)
@@ -299,6 +303,11 @@ def main():
             labels = torch.arange(logits.shape[0], dtype=torch.long, device=logits.device)
             # loss = torch.mean(cpc_loss(logits, labels) + 0.5 * torch.logsumexp(logits, dim=1) ** 2)
             loss = torch.mean(cpc_loss(logits, labels) + 1.0 * torch.logsumexp(logits, dim=1) ** 2)
+
+            loss_vec.append(loss)
+            uniformity_vec.append(unif_loss_val)
+            logsumexp_vec.append(torch.mean(torch.logsumexp(logits, dim=1) ** 2))
+
             # unif_loss_val = (uniform_loss(s_repr, t=opt.unif_t) + uniform_loss(g_repr, t=opt.unif_t)) / 2
             # loss += unif_loss_val
             # weights = torch.ones_like(logits)
@@ -321,6 +330,15 @@ def main():
     ckpt_file = os.path.join(opt.save_folder, 'encoder.pth')
     torch.save(encoder.module.state_dict(), ckpt_file)
     print(f'Saved to {ckpt_file}')
+
+    fig, axes = plt.subplots(3, 1)
+    axes[0].plot(loss_vec)
+    axes[0].set_ylabel("critic loss")
+    axes[1].plot(uniformity_vec)
+    axes[1].set_ylabel("uniformity")
+    axes[2].plot(logsumexp_vec)
+    axes[2].set_ylabel("logsumexp")
+    plt.savefig("figures/metaworld_10_tasks_img_timestep_mixed_repr_loss.pdf")
 
     fig = visualize(opt, encoder, loader)
     # fig_path = "figures/metaworld_door_open_v2_img_repr_vis.html"

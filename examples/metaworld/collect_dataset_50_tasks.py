@@ -171,7 +171,7 @@ def main():
     dataset_path = os.path.join(dataset_dir, "metaworld_50_tasks_img_val.pkl")
     os.makedirs(dataset_dir, exist_ok=True)
     with open(dataset_path, "wb+") as f:
-        pkl.dump(train_dataset, f)
+        pkl.dump(val_dataset, f)
     print("Dataset saved to: {}".format(dataset_path))
 
 
